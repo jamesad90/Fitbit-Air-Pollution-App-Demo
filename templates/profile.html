@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitbit Data</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+
+<body>
+    <h1>Fitbit Data</h1>
+    <h2>Heart Rate Data</h2>
+    <table border="1">
+        <tr>
+            <th>Date</th>
+            <th>Resting Heart Rate</th>
+            <th>Out of Range Minutes</th>
+            <th>Fat Burn Minutes</th>
+            <th>Cardio Minutes</th>
+            <th>Peak Minutes</th>
+        </tr>
+        {% for entry in heartrate_data['activities-heart'] %}
+        <tr>
+            <td>{{ entry['dateTime'] }}</td>
+            <td>{{ entry['value']['restingHeartRate'] }}</td>
+            <td>{{ entry['value']['heartRateZones'][0]['minutes'] }}</td>
+            <td>{{ entry['value']['heartRateZones'][1]['minutes'] }}</td>
+            <td>{{ entry['value']['heartRateZones'][2]['minutes'] }}</td>
+            <td>{{ entry['value']['heartRateZones'][3]['minutes'] }}</td>
+        </tr>
+        {% endfor %}
+        
+    </table>
+
+    <h2>Oxygen Saturation Data</h2>
+    <table border="1">
+        <tr>
+            <th>Date</th>
+            <th>Average</th>
+            <th>Max</th>
+            <th>Min</th>
+        </tr>
+        {% for entry in oxygen_saturation_data %}
+        <tr>
+            <td>{{ entry['dateTime'] }}</td>
+            <td>{{ entry['value']['avg'] }}</td>
+            <td>{{ entry['value']['max'] }}</td>
+            <td>{{ entry['value']['min'] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+
+    <h2>HRV Data</h2>
+    <table border="1">
+        <tr>
+            <th>Date</th>
+            <th>Daily RMSSD</th>
+            <th>Deep RMSSD</th>
+        </tr>
+        {% for entry in hrv_data['hrv'] %}
+        <tr>
+            <td>{{ entry['dateTime'] }}</td>
+            <td>{{ entry['value']['dailyRmssd'] }}</td>
+            <td>{{ entry['value']['deepRmssd'] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Respiratory Rate Data</h2>
+    <table border="1">
+        <tr>
+            <th>Date</th>
+            <th>Breathing Rate</th>
+        </tr>
+        {% for entry in respiratory_rate_data['br'] %}
+        <tr>
+            <td>{{ entry['dateTime'] }}</td>
+            <td>{{ entry['value']['breathingRate'] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <h2>Temperature Data</h2>
+    <table border="1">
+        <tr>
+            <th>Date</th>
+            <th>Breathing Rate</th>
+        </tr>
+        {% for entry in temperature_data['tempSkin'] %}
+        <tr>
+            <td>{{ entry['dateTime'] }}</td>
+            <td>{{ entry['value']['nightlyRelative'] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Sleep Data</h2>
+    <table border="1">
+        <tr>
+            <th>Date of Sleep</th>
+            <th>Duration (mins)</th>
+            <th> Duration (hours)</th>
+            <th>Efficiency</th>
+            <!-- Add more columns as needed -->
+        </tr>
+        {% for entry in sleep_data['sleep'] %}
+        <tr>
+            <td>{{ entry['dateOfSleep'] }}</td>
+            <td>{{ entry['duration'] / 60000 }}</td>
+            <td>{{ entry['duration'] / 60000 / 60 }}</td>
+            <td>{{ entry['efficiency'] }}</td>
+            <!-- Add more cells with data as needed -->
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Electrocardiogram Waveform Plots:</h2>
+    {% for reading in electrocardiogram_data['ecgReadings'] %}
+    <div id="plot_{{ loop.index }}"></div>
+    <script>
+        var waveform_samples_{{ loop.index }} = {{ reading['waveformSamples'] | tojson }};
+        var sampling_frequency_{{ loop.index }} = {{ reading['samplingFrequencyHz'] }};
+        var time_{{ loop.index }} = [];
+        for (var i = 0; i < waveform_samples_{{ loop.index }}.length; i++) {
+            time_{{ loop.index }}.push(i / sampling_frequency_{{ loop.index }});
+        }
+        var trace = {
+            x: time_{{ loop.index }},
+            y: waveform_samples_{{ loop.index }},
+            type: 'scatter',
+            mode: 'lines',
+            name: 'ECG Waveform'
+        };
+        var layout = {
+            xaxis: {title: 'Time (s)'},
+            yaxis: {title: 'Amplitude'},
+            title: 'Electrocardiogram Waveform'
+        };
+        Plotly.newPlot('plot_{{ loop.index }}', [trace], layout);
+    </script>
+    {% endfor %}
+</body>
+</html>

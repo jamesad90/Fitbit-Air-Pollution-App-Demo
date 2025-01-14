@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select User</title>
+</head>
+<body>
+    <h1>Select a User to View Data</h1>
+    <form action="{{ url_for('display_user_data') }}" method="get">
+        <label for="username">Select User:</label>
+        <select name="username" id="username">
+            {% for user in user_data_list %}
+                <option value="{{ user.username }}">{{ user.username }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">View Data</button>
+    </form>
+</body>
+</html>

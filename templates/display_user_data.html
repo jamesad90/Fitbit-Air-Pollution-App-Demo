@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data.min.js"></script>
+    <title>User Health Data</title>
+    <style>
+        body {
+            font-family: 'Lato', sans-serif;
+            line-height: 1.6;
+            margin: 20px;
+            background-color: #fdfdfd;
+            color: #333;
+        }
+        .styled-table {
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 0.9em;
+            font-family: sans-serif;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .styled-table thead tr {
+            background-color: #009879;
+            color: #ffffff;
+            text-align: center;
+        }
+        .styled-table tbody tr {
+            border-bottom: 1px solid #dddddd;
+            text-align: center;
+        }
+        .styled-table tbody tr:nth-of-type(even) {
+            background-color: #f3f3f3;
+        }
+        .styled-table tbody tr:last-of-type {
+            border-bottom: 2px solid #009879;
+        }
+        .styled-table tbody tr.active-row {
+            font-weight: bold;
+            color: #009879;
+        }
+        .section-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #000000;
+            padding-bottom: 5px;
+            color: #009879;
+        }
+        .styled-table tbody tr:hover {
+            background-color: #ff9f43;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Health Data</h1>
+
+    <div class="section">
+        <h2 class="section-title">Select Date</h2>
+        <select id="dateDropdown" onchange="showDataForSelectedDate()">
+            <option value="">Select a Date</option>
+            {% for date in health_data %}
+            <option value="{{ date }}">{{ date }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div id="dataSection" class="section">
+        <!-- Data for selected date will be displayed here -->
+    </div>
+
+    <script>
+        function showDataForSelectedDate() {
+            var selectedDate = document.getElementById("dateDropdown").value;
+            if (selectedDate) {
+                var data = JSON.parse('{{ health_data | tojson | safe }}')[selectedDate];
+                var dataSection = document.getElementById("dataSection");
+                var html = '';
+
+                // Devices Data
+                if (data.devices_data) {
+                    html += `<h2 class="section-title">Devices Data</h2>
+                             <table class="styled-table">
+                                 <thead>
+                                     <tr>
+                                         <th>Battery</th>
+                                         <th>Battery Level</th>
+                                         <th>Device Version</th>
+                                         <th>Last Sync Time (London TZ)</th>
+                                         <th>Device ID</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody>`;
+                    for (var device of data.devices_data) {
+                        html += `<tr>
+                                    <td>${device.battery}</td>
+                                    <td>${device.batteryLevel}</td>
+                                    <td>${device.deviceVersion}</td>
+                                    <td>
+                                        <span>${moment.utc(device.lastSyncTime).tz('Europe/London').format("DD-MM-YYYY HH:mm:ss")}</span>
+                                    </td>
+                                    <td>${device.id}</td>
+                                </tr>`;
+                    }
+                    html += `</tbody></table>`;
+                }
+
+                // Steps Data
+                if (data.steps_data && data.steps_data['activities-steps'] && Array.isArray(data.steps_data['activities-steps'])) {
+                    html += `<h2 class="section-title">Steps Data</h2>
+                             <table class="styled-table">
+                                 <thead>
+                                     <tr>
+                                         <th>Date</th>
+                                         <th>Steps</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody>`;
+                    for (var step of data.steps_data['activities-steps']) {
+                        html += `<tr>
+                                    <td>${step.dateTime}</td>
+                                    <td>${step.value}</td>
+                                </tr>`;
+                    }
+                    html += `</tbody></table>`;
+                } else {
+                    html += `<p>No steps data available for ${selectedDate}.</p>`;
+                }
+
+                // Combined Intraday Steps and Heart Rate Data
+                if (data.steps_data && data.steps_data['activities-steps-intraday'] && Array.isArray(data.steps_data['activities-steps-intraday'].dataset)
+                    && data.heartrate_data && data.heartrate_data['activities-heart-intraday'] && Array.isArray(data.heartrate_data['activities-heart-intraday'].dataset)) {
+                    
+                    var stepsIntraday = data.steps_data['activities-steps-intraday'].dataset;
+                    var heartrateIntraday = data.heartrate_data['activities-heart-intraday'].dataset;
+                    
+                    // Combine datasets based on time
+                    var combinedData = [];
+                    var timeMap = {};
+                    
+                    for (var stepEntry of stepsIntraday) {
+                        timeMap[stepEntry.time] = { steps: stepEntry.value, heartRate: null };
+                    }
+                    
+                    for (var heartEntry of heartrateIntraday) {
+                        if (timeMap[heartEntry.time]) {
+                            timeMap[heartEntry.time].heartRate = heartEntry.value;
+                        } else {
+                            timeMap[heartEntry.time] = { steps: null, heartRate: heartEntry.value };
+                        }
+                    }
+                    
+                    for (var time in timeMap) {
+                        combinedData.push({ time: time, steps: timeMap[time].steps, heartRate: timeMap[time].heartRate });
+                    }
+                    
+                    html += `<h2 class="section-title">Intraday Steps and Heart Rate Data</h2>
+                             <table class="styled-table">
+                                 <thead>
+                                     <tr>
+                                         <th>Time</th>
+                                         <th>Steps</th>
+                                         <th>Heart Rate</th>
+                                     </tr>
+                                 </thead>
+                                 <tbody>`;
+                    for (var entry of combinedData) {
+                        html += `<tr>
+                                    <td>${entry.time}</td>
+                                    <td>${entry.steps !== null ? entry.steps : '-'}</td>
+                                    <td>${entry.heartRate !== null ? entry.heartRate : '-'}</td>
+                                </tr>`;
+                    }
+                    html += `</tbody></table>`;
+                } else {
+                    html += `<p>No intraday steps or heart rate data available for ${selectedDate}.</p>`;
+                }
+
+                // Other data sections can be added similarly...
+
+                dataSection.innerHTML = html;
+            } else {
+                document.getElementById("dataSection").innerHTML = "";
+            }
+        }
+    </script>
+</body>
+</html>
